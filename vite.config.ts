@@ -12,6 +12,16 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       cssCodeSplit: false,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'data-bible-rkk': [path.resolve(__dirname, './data/library/Biblija_RKK1998.ts')],
+            'data-bible-kjv': [path.resolve(__dirname, './data/library/Biblija-LT-KJV-2012.ts')],
+            'data-katekizmas': [path.resolve(__dirname, './data/library/Katekizmas.ts')],
+            'vendor': ['react', 'react-dom', 'lucide-react'],
+          }
+        }
+      }
     },
     plugins: [
       react(),
