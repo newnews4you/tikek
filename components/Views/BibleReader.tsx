@@ -281,11 +281,25 @@ export const BibleReader: React.FC = () => {
       const range = sel.getRangeAt(0);
       const rect = range.getBoundingClientRect();
 
-      setSelection({
-        text: sel.toString().trim(),
-        x: rect.left + rect.width / 2,
-        y: rect.top - 10
-      });
+      // On mobile, add a delay to show the button after native menu appears
+      if (isMobile) {
+        setTimeout(() => {
+          const currentSel = window.getSelection();
+          if (currentSel && currentSel.toString().trim().length > 5) {
+            setSelection({
+              text: currentSel.toString().trim(),
+              x: rect.left + rect.width / 2,
+              y: rect.top - 10
+            });
+          }
+        }, 300);
+      } else {
+        setSelection({
+          text: sel.toString().trim(),
+          x: rect.left + rect.width / 2,
+          y: rect.top - 10
+        });
+      }
     } else {
       setTimeout(() => {
         const currentSel = window.getSelection();
@@ -774,7 +788,7 @@ export const BibleReader: React.FC = () => {
             {/* Selection Button */}
             {selection && (
               isMobile ? (
-                <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[9999] animate-in slide-in-from-bottom duration-300">
+                <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[99999] animate-in slide-in-from-bottom duration-300">
                   <div className="max-w-md mx-auto flex items-center justify-between gap-4">
                     <div className="flex-1 overflow-hidden">
                       <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-0.5">Pažymėta:</p>
@@ -793,7 +807,7 @@ export const BibleReader: React.FC = () => {
               ) : (
                 <button
                   onMouseDown={(e) => { e.preventDefault(); startAnalysis(); }}
-                  style={{ position: 'fixed', left: selection.x, top: selection.y, transform: 'translate(-50%, -100%)', zIndex: 9999 }}
+                  style={{ position: 'fixed', left: selection.x, top: selection.y, transform: 'translate(-50%, -100%)', zIndex: 99999 }}
                   className="bg-red-900 text-amber-50 px-5 py-2.5 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.3)] flex items-center gap-2 text-sm font-cinzel font-bold animate-in fade-in zoom-in-75 duration-200 hover:scale-105 active:scale-95 transition-transform ring-4 ring-white"
                 >
                   <Sparkles size={16} />
