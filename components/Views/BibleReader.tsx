@@ -157,6 +157,7 @@ export const BibleReader: React.FC = () => {
   const [selectedBook, setSelectedBook] = useState<number | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
   const [selection, setSelection] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [verseClicked, setVerseClicked] = useState(false);
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [highlightedText, setHighlightedText] = useState("");
@@ -276,6 +277,12 @@ export const BibleReader: React.FC = () => {
   }, [chatHistory, isAiLoading, isChatOpen]);
 
   const handleTextSelection = () => {
+    // Skip text selection handling if a verse was clicked
+    if (verseClicked) {
+      setVerseClicked(false);
+      return;
+    }
+
     const sel = window.getSelection();
     if (sel && sel.toString().trim().length > 5) {
       const range = sel.getRangeAt(0);
@@ -313,6 +320,9 @@ export const BibleReader: React.FC = () => {
   const handleVerseClick = (verseNumber: number, verseContent: string, event: React.MouseEvent | React.TouchEvent) => {
     event.preventDefault();
     event.stopPropagation();
+
+    // Set flag to indicate a verse was clicked
+    setVerseClicked(true);
 
     // Get the position of the clicked element
     const target = event.currentTarget as HTMLElement;
