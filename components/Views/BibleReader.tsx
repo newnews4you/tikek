@@ -310,6 +310,21 @@ export const BibleReader: React.FC = () => {
     }
   };
 
+  const handleVerseClick = (verseNumber: number, verseContent: string, event: React.MouseEvent | React.TouchEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    // Get the position of the clicked element
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+
+    setSelection({
+      text: verseContent,
+      x: rect.left + rect.width / 2,
+      y: rect.top - 10
+    });
+  };
+
   const startAnalysis = async () => {
     if (!selection) return;
     const textToAnalyze = selection.text;
@@ -716,7 +731,12 @@ export const BibleReader: React.FC = () => {
                   <div className="leading-relaxed text-stone-800 text-lg space-y-4">
                     {parsedContent.verses ? (
                       parsedContent.verses.map((verse: any) => (
-                        <span key={verse.number} className="inline mr-1">
+                        <span
+                          key={verse.number}
+                          className="inline mr-1 cursor-pointer"
+                          onClick={(e) => handleVerseClick(verse.number, verse.content, e)}
+                          onTouchEnd={(e) => handleVerseClick(verse.number, verse.content, e)}
+                        >
                           <sup className="text-red-900 font-bold text-xs mr-1 opacity-70 select-none">
                             {verse.number}
                           </sup>
@@ -778,7 +798,7 @@ export const BibleReader: React.FC = () => {
               <div className="mt-12 p-6 bg-stone-100/50 rounded-xl border border-stone-200 text-center">
                 <Info className="mx-auto text-stone-400 mb-2" size={20} />
                 <p className="text-sm text-stone-500 font-serif italic">
-                  Pažymėkite bet kurią eilutę tekste, kad Tikėjimo Šviesa AI galėtų ją paaiškinti.
+                  Paspauskite ant eilutės (pvz., 15) arba pažymėkite tekstą, kad Tikėjimo Šviesa AI galėtų ją paaiškinti.
                 </p>
               </div>
 
