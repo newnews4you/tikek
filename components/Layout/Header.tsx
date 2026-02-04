@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Cross, MessageCircle, BookHeart, Book, RefreshCw, Info, Database, Lock } from 'lucide-react';
 import { PWAInstallButton } from '../UI/PWAInstallButton';
+import { LiturgyData, getLiturgicalColorCSS } from '../../services/liturgyService';
+import { Calendar } from 'lucide-react';
 
 interface HeaderProps {
   currentView: 'chat' | 'prayer' | 'bible' | 'data';
@@ -8,9 +10,11 @@ interface HeaderProps {
   onNewChat: () => void;
   onOpenSources: () => void;
   onOpenSearch: () => void;
+  liturgyData: LiturgyData | null;
+  onOpenLiturgyModal: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, onNewChat, onOpenSources, onOpenSearch }) => {
+export const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, onNewChat, onOpenSources, onOpenSearch, liturgyData, onOpenLiturgyModal }) => {
   const [adminClicks, setAdminClicks] = useState(0);
   const [isAdminVisible, setIsAdminVisible] = useState(false);
 
@@ -46,9 +50,27 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, onNew
               <h1 className="font-cinzel font-bold text-xl sm:text-2xl text-stone-900 tracking-wide leading-none">
                 Tikėjimo Šviesa
               </h1>
-              <p className="text-[10px] sm:text-xs text-amber-700 font-serif italic tracking-wider">
-                Ad Majorem Dei Gloriam
-              </p>
+
+              {/* Liturgy Badge (Compact) */}
+              {liturgyData ? (
+                <div
+                  onClick={(e) => { e.stopPropagation(); onOpenLiturgyModal(); }}
+                  className="flex items-center gap-1.5 mt-1 cursor-pointer hover:bg-stone-100/50 rounded pr-2 transition-colors py-0.5"
+                  title="Atidaryti liturginį kalendorių"
+                >
+                  <div
+                    className="w-2 h-2 rounded-full shadow-sm"
+                    style={{ background: getLiturgicalColorCSS(liturgyData.color) }}
+                  />
+                  <p className="text-[10px] sm:text-xs text-stone-600 font-medium leading-none">
+                    {liturgyData.dateFormatted} • {liturgyData.seasonLt}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[10px] sm:text-xs text-amber-700 font-serif italic tracking-wider mt-0.5">
+                  Ad Majorem Dei Gloriam
+                </p>
+              )}
             </div>
           </div>
 
@@ -59,8 +81,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, onNew
               <button
                 onClick={() => onViewChange('chat')}
                 className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${currentView === 'chat'
-                    ? 'bg-white text-red-900 shadow-sm'
-                    : 'text-stone-500 hover:text-stone-700 hover:bg-stone-200/50'
+                  ? 'bg-white text-red-900 shadow-sm'
+                  : 'text-stone-500 hover:text-stone-700 hover:bg-stone-200/50'
                   }`}
               >
                 <MessageCircle size={16} />
@@ -69,8 +91,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, onNew
               <button
                 onClick={() => onViewChange('bible')}
                 className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${currentView === 'bible'
-                    ? 'bg-white text-red-900 shadow-sm'
-                    : 'text-stone-500 hover:text-stone-700 hover:bg-stone-200/50'
+                  ? 'bg-white text-red-900 shadow-sm'
+                  : 'text-stone-500 hover:text-stone-700 hover:bg-stone-200/50'
                   }`}
               >
                 <Book size={16} />
@@ -79,8 +101,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, onNew
               <button
                 onClick={() => onViewChange('prayer')}
                 className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${currentView === 'prayer'
-                    ? 'bg-white text-red-900 shadow-sm'
-                    : 'text-stone-500 hover:text-stone-700 hover:bg-stone-200/50'
+                  ? 'bg-white text-red-900 shadow-sm'
+                  : 'text-stone-500 hover:text-stone-700 hover:bg-stone-200/50'
                   }`}
               >
                 <BookHeart size={16} />
@@ -92,8 +114,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onViewChange, onNew
                 <button
                   onClick={() => onViewChange('data')}
                   className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${currentView === 'data'
-                      ? 'bg-red-100 text-red-900 shadow-sm border border-red-200'
-                      : 'text-stone-500 hover:text-red-700 hover:bg-red-50'
+                    ? 'bg-red-100 text-red-900 shadow-sm border border-red-200'
+                    : 'text-stone-500 hover:text-red-700 hover:bg-red-50'
                     }`}
                 >
                   <Database size={16} />

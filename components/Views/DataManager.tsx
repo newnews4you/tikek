@@ -152,7 +152,7 @@ ${safeText}
     URL.revokeObjectURL(url);
   };
 
-  // --- COST CALCULATION (Gemini 3 Flash Logic) ---
+  // --- COST CALCULATION (Gemini 2.5 Flash Logic) ---
   const PRICING = {
     input: 0.075, // $0.075 per 1M tokens
     output: 0.30, // $0.30 per 1M tokens
@@ -213,8 +213,8 @@ ${safeText}
       {/* Status Message */}
       {uploadStatus && (
         <div className={`max-w-3xl mx-auto p-4 rounded-xl mb-8 flex items-center gap-3 border ${uploadStatus.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' :
-            uploadStatus.type === 'loading' ? 'bg-amber-50 text-amber-800 border-amber-200' :
-              'bg-red-50 text-red-800 border-red-200'
+          uploadStatus.type === 'loading' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+            'bg-red-50 text-red-800 border-red-200'
           }`}>
           {uploadStatus.type === 'success' && <CheckCircle size={20} />}
           {uploadStatus.type === 'error' && <AlertCircle size={20} />}

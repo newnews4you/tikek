@@ -12,6 +12,8 @@ import { sendMessageStream } from './services/geminiService';
 import { GenerateContentResponse } from '@google/genai';
 import { Cross, Book, Heart, HelpCircle } from 'lucide-react';
 import { initKnowledgeBase } from './data/knowledgeBase';
+import { LiturgyModal } from './components/Liturgy/LiturgyModal';
+import { getTodayLiturgy, LiturgyData } from './services/liturgyService';
 
 const QUICK_ACTIONS = [
   { label: 'Dienos Evangelija', icon: <Book size={14} />, prompt: 'Kokia yra šios dienos Evangelija? Prašau pateikti pilną tekstą ir trumpą komentarą.' },
@@ -30,9 +32,12 @@ const INITIAL_MESSAGE: Message = {
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'chat' | 'prayer' | 'bible' | 'data'>('chat');
   const [isSourcesModalOpen, setIsSourcesModalOpen] = useState(false);
-  
+
   const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
   const [ragState, setRagState] = useState<RagState>(RagState.IDLE);
+  const [liturgy, setLiturgy] = useState<LiturgyData | null>(null);
+  const [liturgyLoading, setLiturgyLoading] = useState(true);
+  const [isLiturgyModalOpen, setIsLiturgyModalOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -42,13 +47,19 @@ const App: React.FC = () => {
   useEffect(() => {
     // Initialize the IndexedDB when app loads
     initKnowledgeBase();
+
+    // Fetch liturgy data
+    getTodayLiturgy().then(data => {
+      setLiturgy(data);
+      setLiturgyLoading(false);
+    }).catch(() => setLiturgyLoading(false));
   }, []);
 
   useEffect(() => {
     if (currentView === 'chat') {
-      scrollToBottom();
+      // scrollToBottom(); // Disabled auto-scroll per user request
     }
-  }, [messages, ragState, currentView]);
+  }, [currentView]); // Removed messages and ragState to prevent scrolling on generation
 
   const handleNewChat = () => {
     setMessages([INITIAL_MESSAGE]);
@@ -62,32 +73,32 @@ const App: React.FC = () => {
       text,
       sender: Sender.USER,
       timestamp: Date.now(),
-      image: image 
+      image: image
     };
 
     setMessages(prev => [...prev, userMessage]);
     setRagState(RagState.RETRIEVING);
-    
+
     const history = messages.map(m => ({
       role: m.sender === Sender.USER ? 'user' : 'model',
-      parts: [{ text: m.text }] 
+      parts: [{ text: m.text }]
     }));
 
     try {
       if (!image) {
-          await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, 800));
       } else {
-          await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1500));
       }
-      
+
       setRagState(RagState.ANALYZING);
       await new Promise(resolve => setTimeout(resolve, 800));
       setRagState(RagState.GENERATING);
 
       const promptToSend = text || "Prašau paaiškinti teologinę šio vaizdo prasmę.";
 
-      const streamResult = await sendMessageStream(history, promptToSend, image);
-      
+      const streamResult = await sendMessageStream(history, promptToSend, image, 'image/jpeg', liturgy);
+
       const aiMessageId = (Date.now() + 1).toString();
       let fullText = "";
 
@@ -105,13 +116,13 @@ const App: React.FC = () => {
       for await (const chunk of streamResult) {
         const c = chunk as GenerateContentResponse;
         const chunkText = c.text;
-        
+
         if (chunkText) {
           fullText += chunkText;
-          setMessages(prev => 
-            prev.map(msg => 
-              msg.id === aiMessageId 
-                ? { ...msg, text: fullText } 
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === aiMessageId
+                ? { ...msg, text: fullText }
                 : msg
             )
           );
@@ -127,16 +138,16 @@ const App: React.FC = () => {
       const sourcesRegex = /\|\|\|SOURCES:([\s\S]*?)\|\|\|/;
       const sourceMatch = cleanText.match(sourcesRegex);
       if (sourceMatch) {
-         const rawSources = sourceMatch[1];
-         groundingSources = rawSources.split('|').map(s => {
-             const t = s.trim();
-             // Generate a generic search URI since we don't have real URLs from internal knowledge
-             return { 
-               title: t, 
-               uri: `https://www.google.com/search?q=${encodeURIComponent(t + " katalikų bažnyčia")}` 
-             };
-         }).filter(s => s.title.length > 0);
-         cleanText = cleanText.replace(sourceMatch[0], '');
+        const rawSources = sourceMatch[1];
+        groundingSources = rawSources.split('|').map(s => {
+          const t = s.trim();
+          // Generate a generic search URI since we don't have real URLs from internal knowledge
+          return {
+            title: t,
+            uri: `https://www.google.com/search?q=${encodeURIComponent(t + " katalikų bažnyčia")}`
+          };
+        }).filter(s => s.title.length > 0);
+        cleanText = cleanText.replace(sourceMatch[0], '');
       }
 
       // 2. Extract SUGGESTIONS
@@ -150,30 +161,30 @@ const App: React.FC = () => {
 
       cleanText = cleanText.trim();
 
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === aiMessageId 
-            ? { 
-                ...msg, 
-                text: cleanText, 
-                isStreaming: false, 
-                suggestions: suggestions,
-                groundingSources: groundingSources 
-              } 
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === aiMessageId
+            ? {
+              ...msg,
+              text: cleanText,
+              isStreaming: false,
+              suggestions: suggestions,
+              groundingSources: groundingSources
+            }
             : msg
         )
       );
 
     } catch (error: any) {
       console.error("Error sending message:", error);
-      
+
       let errorMessage = "Atsiprašau, įvyko nenumatyta klaida. Prašau pabandyti dar kartą.";
       const errorStr = JSON.stringify(error);
-      
+
       // Detect Leaked/Blocked API Key
       if (
-        errorStr.includes("403") || 
-        errorStr.includes("leaked") || 
+        errorStr.includes("403") ||
+        errorStr.includes("leaked") ||
         errorStr.includes("API key") ||
         errorStr.includes("PERMISSION_DENIED")
       ) {
@@ -196,21 +207,25 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-stone-50">
-      <Header 
-        currentView={currentView} 
-        onViewChange={setCurrentView} 
+      <Header
+        currentView={currentView}
+        onViewChange={setCurrentView}
         onNewChat={handleNewChat}
         onOpenSources={() => setIsSourcesModalOpen(true)}
-        onOpenSearch={() => {}}
+        onOpenSearch={() => { }}
+        liturgyData={liturgy}
+        onOpenLiturgyModal={() => setIsLiturgyModalOpen(true)}
       />
-      
+
       <main className="flex-1 overflow-y-auto relative scroll-smooth">
         {currentView === 'chat' && (
           <div className="max-w-3xl mx-auto px-4 pt-8 pb-4">
+
+
             {messages.map((msg) => (
-              <MessageBubble 
-                key={msg.id} 
-                message={msg} 
+              <MessageBubble
+                key={msg.id}
+                message={msg}
                 onSuggestionClick={(text) => handleSendMessage(text)}
               />
             ))}
@@ -236,29 +251,42 @@ const App: React.FC = () => {
         <>
           {messages.length < 3 && ragState === RagState.IDLE && (
             <div className="max-w-3xl mx-auto px-4 mb-2 flex flex-wrap gap-2 justify-center fade-in slide-in-from-bottom-3 animate-in duration-500">
-               {QUICK_ACTIONS.map((action, idx) => (
-                 <button
-                   key={idx}
-                   onClick={() => handleSendMessage(action.prompt)}
-                   className="flex items-center gap-2 bg-white/60 hover:bg-white border border-stone-200 hover:border-amber-300 px-3 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-amber-800 transition-all shadow-sm backdrop-blur-sm"
-                 >
-                   {action.icon}
-                   {action.label}
-                 </button>
-               ))}
+              {QUICK_ACTIONS.map((action, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSendMessage(action.prompt)}
+                  className="flex items-center gap-2 bg-white/60 hover:bg-white border border-stone-200 hover:border-amber-300 px-3 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:text-amber-800 transition-all shadow-sm backdrop-blur-sm"
+                >
+                  {action.icon}
+                  {action.label}
+                </button>
+              ))}
             </div>
           )}
 
-          <InputArea 
-            onSendMessage={handleSendMessage} 
-            isLoading={ragState !== RagState.IDLE} 
+          <InputArea
+            onSendMessage={handleSendMessage}
+            isLoading={ragState !== RagState.IDLE}
           />
         </>
       )}
 
-      <SourcesModal 
-        isOpen={isSourcesModalOpen} 
-        onClose={() => setIsSourcesModalOpen(false)} 
+      <SourcesModal
+        isOpen={isSourcesModalOpen}
+        onClose={() => setIsSourcesModalOpen(false)}
+      />
+
+      <LiturgyModal
+        isOpen={isLiturgyModalOpen}
+        onClose={() => setIsLiturgyModalOpen(false)}
+        data={liturgy}
+        onAsk={() => {
+          const prompt = liturgy?.saintOfTheDay
+            ? `Papasakok apie šventę: ${liturgy.saintOfTheDay}. Kokia jos prasmė ir šventojo gyvenimas?`
+            : `Šiandien yra ${liturgy?.seasonLt || 'eilinis laikas'}. Kokia yra šios dienos Evangelija ir jos išminties žodžiai?`;
+          handleSendMessage(prompt);
+          // Modal will be closed by the component itself calling callbacks
+        }}
       />
     </div>
   );

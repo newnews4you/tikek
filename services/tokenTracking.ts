@@ -42,6 +42,15 @@ export interface UsageStatistics {
 
 // Pricing (per 1M tokens)
 const PRICING = {
+  // Gemini 2.5 Flash
+  'gemini-2.5-flash': {
+    input: 0.075,
+    output: 0.30
+  },
+  'gemini-2.5-flash-lite': {
+    input: 0.075,
+    output: 0.30
+  },
   // Gemini 1.5 Flash
   'gemini-1.5-flash': {
     input: 0.075,
@@ -57,7 +66,7 @@ const PRICING = {
     input: 0.025,
     output: 0 // Embeddings have no output tokens in the same sense
   },
-  // Fallback / Legacy (Gemini 3 Flash Preview as placeholder)
+  // Fallback
   'default': {
     input: 0.075,
     output: 0.30
@@ -109,12 +118,20 @@ export const recordTokenUsage = (
 
   // Determine pricing based on model
   let modelPricing;
-  if (model.includes('embedding')) {
+
+  // 1. Try exact match
+  if (PRICING[model as keyof typeof PRICING]) {
+    modelPricing = PRICING[model as keyof typeof PRICING];
+  }
+  // 2. Try partial matches
+  else if (model.includes('embedding')) {
     modelPricing = PRICING['text-embedding-004'];
   } else if (model.includes('pro')) {
     modelPricing = PRICING['gemini-1.5-pro'];
+  } else if (model.includes('flash')) {
+    modelPricing = PRICING['gemini-1.5-flash']; // Assume all flashes are similar if unknown
   } else {
-    modelPricing = PRICING['gemini-1.5-flash'] || PRICING['default'];
+    modelPricing = PRICING['default'];
   }
 
   const costInput = (inputTokens / 1000000) * modelPricing.input;
