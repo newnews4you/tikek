@@ -1,0 +1,5 @@
+{
+  "name": "Tikėjimo Šviesa - Katalikiškas Žinių Asistentas",
+  "description": "RAG principais paremtas teologinis asistentas, besiremiantis Šventuoju Raštu, Katalikų Bažnyčios Katekizmu ir Šventąja Tradicija. Atsakymai pateikiami lietuvių kalba su tiksliomis nuorodomis.",
+  "requestFramePermissions": []
+}
