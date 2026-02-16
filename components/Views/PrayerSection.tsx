@@ -73,6 +73,16 @@ export const PrayerSection: React.FC = () => {
   const [isCandleLit, setIsCandleLit] = useState(false);
   const [chapelPrayer, setChapelPrayer] = useState<string | null>(null);
 
+  // Strip AI markers from responses
+  const stripMarkers = (text: string | undefined | null): string => {
+    if (!text) return '';
+    return text
+      .replace(/\|\|\|\s*SOURCES:[\s\S]*?\|\|\|/g, '')
+      .replace(/\|\|\|\s*SUGGESTIONS:[\s\S]*?\|\|\|/g, '')
+      .replace(/###\s*/g, '')
+      .trim();
+  };
+
   // Rosary Logic
   const dayOfWeek = new Date().getDay();
   let mysteryName = "";
@@ -108,7 +118,7 @@ export const PrayerSection: React.FC = () => {
         2. Parašyk trumpą (3-4 sakinių), bet labai gilią ir viltingą maldą/apmąstymą iš Katalikų Bažnyčios tradicijos perspektyvos.
         Formatas: Pirmiausia citata paryškintai, tada malda. Naudok pagarbią, sakralią kalbą.
       `;
-      const result = await generateSimpleContent(prompt);
+      const result = stripMarkers(await generateSimpleContent(prompt));
       setDoctorResult(result || "Atsiprašau, nepavyko sugeneruoti maldos.");
     } catch (e: any) {
       console.error(e);
@@ -137,7 +147,7 @@ export const PrayerSection: React.FC = () => {
         - [Klausimas apmąstymui 1]
         - [Klausimas apmąstymui 2]
       `;
-      const result = await generateSimpleContent(prompt);
+      const result = stripMarkers(await generateSimpleContent(prompt));
       if (result) {
         const quoteMatch = result.match(/CITATA:\s*(.+)/);
         const refMatch = result.match(/NUORODA:\s*(.+)/);
@@ -167,7 +177,7 @@ export const PrayerSection: React.FC = () => {
     setIsCandleLit(true);
     try {
       const prompt = `Parašyk labai trumpą (1 sakinys) užtarimo maldą šiai intencijai: "${candleIntention}".`;
-      const result = await generateSimpleContent(prompt);
+      const result = stripMarkers(await generateSimpleContent(prompt));
       setChapelPrayer(result);
     } catch (e) {
       setChapelPrayer("Viešpatie, išklausyk mūsų maldą.");

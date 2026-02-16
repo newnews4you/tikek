@@ -223,15 +223,19 @@ const calculateRelevanceScore = (
       score += 30;
     }
 
-    // Fuzzy matching
+    // Fuzzy matching (Restricted to Title/Tags for performance)
+    // We rely on Vector Search (cosine similarity) for body content fuzziness/synonyms
     if (options.fuzzyMatch) {
-      const contentTokens = tokenize(chunk.content);
-      for (const contentToken of contentTokens) {
-        if (isFuzzyMatch(token, contentToken, 0.25)) {
-          score += 10;
-          fuzzyMatches++;
-          break;
-        }
+      // Check tags for fuzzy match
+      if (chunk.tags.some(tag => isFuzzyMatch(token, tag, 0.25))) {
+        score += 15;
+        fuzzyMatches++;
+      }
+      // Check title for fuzzy match
+      const titleTokens = tokenize(chunk.bookOrSection);
+      if (titleTokens.some(t => isFuzzyMatch(token, t, 0.25))) {
+        score += 25;
+        fuzzyMatches++;
       }
     }
   });
@@ -243,9 +247,11 @@ const calculateRelevanceScore = (
 
   // 5. Source type weighting
   if (chunk.source === 'Biblija' || chunk.source === 'Šventasis Raštas') {
-    score *= 2.0; // Boost for biblical content (was 2.5, slightly reduced to allow KBK in)
+    score *= 2.0; // Boost for biblical content
   } else if (chunk.source.includes('Katekizmas')) {
-    score *= 1.5; // Boost for Catechism as well to ensure it passes threshold
+    score *= 1.5; // Boost for Catechism
+  } else if (chunk.source === 'Kita' || chunk.bookOrSection.toLowerCase().includes('enciklik')) {
+    score *= 1.4; // Boost for Encyclicals (Lumen Fidei, Fides et Ratio)
   }
 
   // 6. Vector Similarity (Semantic meaning)

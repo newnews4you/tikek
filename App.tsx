@@ -175,7 +175,7 @@ const App: React.FC = () => {
       let groundingSources: GroundingSource[] = [];
 
       // 1. Extract SOURCES
-      const sourcesRegex = /\|\|\|SOURCES:([\s\S]*?)\|\|\|/;
+      const sourcesRegex = /\|\|\|\s*SOURCES:([\s\S]*?)\|\|\|/;
       const sourceMatch = cleanText.match(sourcesRegex);
       if (sourceMatch) {
         const rawSources = sourceMatch[1];
@@ -191,7 +191,7 @@ const App: React.FC = () => {
       }
 
       // 2. Extract SUGGESTIONS
-      const suggestionRegex = /\|\|\|SUGGESTIONS:([\s\S]*?)\|\|\|/;
+      const suggestionRegex = /\|\|\|\s*SUGGESTIONS:([\s\S]*?)\|\|\|/;
       const suggestionMatch = cleanText.match(suggestionRegex);
       if (suggestionMatch) {
         const rawSuggestions = suggestionMatch[1];

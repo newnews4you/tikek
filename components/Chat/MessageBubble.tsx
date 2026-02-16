@@ -32,7 +32,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSuggest
   };
 
   const renderContent = (text: string) => {
-    const cleanText = text.split('|||SUGGESTIONS')[0].split('|||SOURCES')[0];
+    // Robustly strip metadata blocks using regex (handles optional spaces)
+    const cleanText = text
+      .replace(/\|\|\|\s*SUGGESTIONS[\s\S]*$/, '')
+      .replace(/\|\|\|\s*SOURCES[\s\S]*$/, '')
+      .trim();
+
     const lines = cleanText.split('\n');
 
     return lines.map((line, i) => {

@@ -152,16 +152,16 @@ ${safeText}
     URL.revokeObjectURL(url);
   };
 
-  // --- COST CALCULATION (Gemini 2.5 Flash Logic) ---
+  // --- COST CALCULATION (Gemini 2.5 Flash) ---
   const PRICING = {
-    input: 0.15, // Gemini 2.5 Flash
-    output: 0.60,
+    input: 0.075, // Standard tier (<128k context)
+    output: 0.30,
     eurRate: 0.92,
   };
 
   const USAGE = {
-    inputTokens: 4500, // Context (3.5k) + System (0.5k) + History (0.5k)
-    outputTokens: 600  // Average comprehensive theological response
+    inputTokens: 6500, // Context (4.5k) + System (1k) + History (1k) - Updated for 4-source RAG
+    outputTokens: 800  // Comprehensive theological response with citations
   };
 
   const costInput = (USAGE.inputTokens / 1000000) * PRICING.input;

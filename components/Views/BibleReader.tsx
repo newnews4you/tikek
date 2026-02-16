@@ -306,10 +306,16 @@ export const BibleReader: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    // Only scroll to bottom if the last message is from the user
+    // This prevents auto-scrolling to the end of long AI responses
+    const lastMsg = chatHistory[chatHistory.length - 1];
+    if (scrollRef.current && lastMsg?.role === 'user') {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
     }
-  }, [chatHistory, isAiLoading, isChatOpen]);
+  }, [chatHistory.length]);
 
   const handleTextSelection = () => {
     // Skip text selection handling if a verse was clicked

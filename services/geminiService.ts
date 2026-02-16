@@ -240,7 +240,7 @@ export const sendMessageStream = async (
     const knowledgeBase = getKnowledgeBase();
     let searchResults = semanticSearch(knowledgeBase, {
       query: currentMessage,
-      limit: 5,
+      limit: 8,
       fuzzyMatch: true,
       includeContext: false,
       queryEmbedding: queryEmbedding || undefined
@@ -251,40 +251,34 @@ export const sendMessageStream = async (
 
     if (relevantResults.length > 0) {
       retrievedContextFromRAG = "### AUTENTIŠKI ŠALTINIAI ATSAKYMUI (NAUDOTI ŠIUOS TEKSTUS) ###\n";
-      // Prioritize Bible AND Catechism: try to get one of each for balanced view
+      // Balanced source selection: try to get diverse sources (Bible, Catechism, Encyclical)
       const bibleChunk = relevantResults.find(r => r.source === 'Biblija' || r.source === 'Šventasis Raštas');
       const catechismChunk = relevantResults.find(r => r.source.includes('Katekizmas') || r.source.includes('KBK'));
+      const encyclicalChunk = relevantResults.find(r => r.source === 'Kita' || r.bookOrSection.toLowerCase().includes('enciklik'));
 
-      let topChunks = [];
+      let topChunks: SearchResult[] = [];
 
-      // Logic: 
-      // 1. If we have both, take 1 Bible + 1 Catechism
-      // 2. If we have only Bible, take 2 Bible (or 1 Bible + 1 other)
-      // 3. If we have only Catechism, take 2 Catechism (or 1 Catechism + 1 other)
+      // 1. Add the best from each source type if available
+      if (bibleChunk) topChunks.push(bibleChunk);
+      if (catechismChunk) topChunks.push(catechismChunk);
+      if (encyclicalChunk) topChunks.push(encyclicalChunk);
 
-      if (bibleChunk && catechismChunk) {
-        topChunks.push(bibleChunk);
-        topChunks.push(catechismChunk);
-      } else if (bibleChunk) {
-        topChunks.push(bibleChunk);
-        // Fill second slot with next best non-duplicate
-        const nextBest = relevantResults.find(r => r !== bibleChunk);
-        if (nextBest) topChunks.push(nextBest);
-      } else if (catechismChunk) {
-        topChunks.push(catechismChunk);
-        // Fill second slot with next best non-duplicate
-        const nextBest = relevantResults.find(r => r !== catechismChunk);
-        if (nextBest) topChunks.push(nextBest);
-      } else {
-        // Fallback: just top 2
-        topChunks = relevantResults.slice(0, 2);
+      // 2. Fill remaining slots (up to 4 total) with next best results
+      const usedIds = new Set(topChunks.map(c => c.content));
+      for (const r of relevantResults) {
+        if (topChunks.length >= 4) break;
+        if (!usedIds.has(r.content)) {
+          topChunks.push(r);
+          usedIds.add(r.content);
+        }
       }
 
-      const uniqueResults = topChunks.filter((value, index, self) =>
-        index === self.findIndex((t) => t.content === value.content)
-      );
+      // If nothing matched the specific types, just take top 4
+      if (topChunks.length === 0) {
+        topChunks = relevantResults.slice(0, 4);
+      }
 
-      uniqueResults.forEach(result => {
+      topChunks.forEach(result => {
         const text = result.content.length > 600 ? result.content.slice(0, 600) + '...' : result.content;
         retrievedContextFromRAG += `--- ŠALTINIS: ${result.bookOrSection} (${result.chapterOrRef}) ---\n${text}\n\n`;
       });
@@ -423,6 +417,12 @@ export const getEmbeddings = async (text: string): Promise<number[] | null> => {
         parts: [{ text }]
       }
     });
+
+    // Track usage (Embedding has 0 output tokens)
+    // Note: If usageMetadata is not returned, estimate based on characters (approx 4 chars per token)
+    const inputTokens = Math.ceil(text.length / 4);
+    recordTokenUsage(inputTokens, 0, 'Embedding: ' + text.slice(0, 30), model);
+
     return result.embeddings?.[0]?.values || null;
   };
 
