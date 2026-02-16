@@ -44,15 +44,6 @@ export interface UsageStatistics {
 const PRICING = {
   // Gemini 2.5 Flash
   'gemini-2.5-flash': {
-    input: 0.15,
-    output: 0.60
-  },
-  'gemini-2.5-flash-lite': {
-    input: 0.075,
-    output: 0.30
-  },
-  // Gemini 1.5 Flash (CURRENT - cheapest)
-  'gemini-1.5-flash': {
     input: 0.075,
     output: 0.30
   },

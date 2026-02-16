@@ -202,10 +202,39 @@ const InlineReader: React.FC<{
         const clipboardText = `${selectedText}\n\n(${reference})`;
 
         navigator.clipboard.writeText(clipboardText);
-
-        // Visual feedback could be added here
         setSelectedVerses([]);
     };
+
+    // AI Verse Analysis (Komentuoti)
+    const [verseAnalysis, setVerseAnalysis] = useState<string | null>(null);
+    const [loadingVerseAnalysis, setLoadingVerseAnalysis] = useState(false);
+
+    const handleAnalyzeVerses = async () => {
+        if (!content || selectedVerses.length === 0) return;
+        const selectedText = selectedVerses.map(vNum => {
+            const v = content.verses.find(cv => cv.number === vNum);
+            return v ? v.content : '';
+        }).join(' ');
+        const reference = `${book} ${chapter + 1}:${selectedVerses.join(',')}`;
+        setSelectedVerses([]);
+        setLoadingVerseAnalysis(true);
+        setVerseAnalysis(null);
+        try {
+            const prompt = `Esu katalikas ir skaitau šią Šventojo Rašto ištrauką: "${selectedText}" (${reference}). Prašau pateikti gilų teologinį komentarą (ekzegezę) iš Katalikų Bažnyčios perspektyvos lietuvių kalba.`;
+            const text = await generateSimpleContent(prompt);
+            setVerseAnalysis(text);
+        } catch (e) {
+            console.error(e);
+            setVerseAnalysis('Atsiprašau, įvyko ryšio klaida.');
+        } finally {
+            setLoadingVerseAnalysis(false);
+        }
+    };
+
+    // Reset on chapter change
+    useEffect(() => {
+        setVerseAnalysis(null);
+    }, [book, chapter]);
 
     // Close selection when changing chapters
     useEffect(() => {
@@ -215,7 +244,7 @@ const InlineReader: React.FC<{
     return (
         <motion.div initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }}
             transition={{ duration: 0.25 }} className={`flex flex-col h-full ${isDark ? 'bg-slate-950' : 'bg-white'}`}>
-            <div className={`sticky top-0 z-20 backdrop-blur-xl border-b px-3 sm:px-4 py-3 ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-stone-200/60'}`}>
+            <div className={`${selectedVerses.length > 0 ? 'fixed top-0 left-0 right-0 z-[200]' : 'sticky top-0 z-20'} backdrop-blur-xl border-b px-3 sm:px-4 py-3 ${isDark ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-stone-200/60'}`}>
                 <div className="flex items-center justify-between max-w-2xl mx-auto">
                     {selectedVerses.length > 0 ? (
                         <div className="flex items-center justify-between w-full">
@@ -226,8 +255,11 @@ const InlineReader: React.FC<{
                                 <button onClick={() => setSelectedVerses([])} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${isDark ? 'text-slate-400 hover:bg-slate-800' : 'text-stone-500 hover:bg-stone-100'}`}>
                                     Atšaukti
                                 </button>
-                                <button onClick={handleCopyVerses} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-lg hover:bg-amber-600">
+                                <button onClick={handleCopyVerses} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${isDark ? 'bg-slate-800 text-amber-400 hover:bg-slate-700' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'}`}>
                                     <BookOpen size={14} /> Kopijuoti
+                                </button>
+                                <button onClick={handleAnalyzeVerses} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-red-900 text-amber-50 shadow-lg hover:bg-red-800">
+                                    <Sparkles size={14} /> Komentuoti
                                 </button>
                             </div>
                         </div>
@@ -413,6 +445,62 @@ const InlineReader: React.FC<{
                                     </motion.div>
                                 )}
                             </AnimatePresence>
+                        </div>
+                    )}
+
+                    {/* Verse Analysis (Komentuoti) */}
+                    {(loadingVerseAnalysis || verseAnalysis) && (
+                        <div className="mt-6 mb-6">
+                            {loadingVerseAnalysis && (
+                                <div className={`w-full py-6 rounded-xl flex flex-col items-center justify-center gap-3 ${isDark ? 'bg-slate-900/50' : 'bg-stone-50'}`}>
+                                    <div className={`w-6 h-6 border-2 border-t-transparent rounded-full animate-spin ${isDark ? 'border-red-400' : 'border-red-600'}`} />
+                                    <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-stone-500'}`}>Analizuojama...</span>
+                                </div>
+                            )}
+                            {verseAnalysis && !loadingVerseAnalysis && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                                    className={`relative overflow-hidden rounded-xl p-5 border shadow-lg ${isDark
+                                        ? 'bg-gradient-to-br from-slate-900 to-slate-900 border-red-500/30'
+                                        : 'bg-gradient-to-br from-white to-red-50/50 border-red-200'
+                                        }`}
+                                >
+                                    <div className={`absolute top-0 left-0 w-1 h-full ${isDark ? 'bg-gradient-to-b from-red-500 to-red-700' : 'bg-gradient-to-b from-red-400 to-red-600'}`} />
+                                    <div className="flex items-start gap-3">
+                                        <Sparkles size={20} className={`mt-1 flex-shrink-0 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className={`font-cinzel font-bold text-sm mb-3 ${isDark ? 'text-red-200' : 'text-red-800'}`}>
+                                                Eilutų Komentaras
+                                            </h4>
+                                            <div className={`text-sm leading-relaxed font-serif ${isDark ? 'text-slate-300' : 'text-stone-700'}`}>
+                                                {(() => {
+                                                    let mainText = verseAnalysis.split('|||SUGGESTIONS')[0].split('|||SOURCES')[0];
+                                                    const lines = mainText.split('\n').filter(l => l.trim() !== '');
+                                                    const parseBold = (text: string) => {
+                                                        const parts = text.split(/(\*\*.*?\*\*)/g);
+                                                        return parts.map((part, j) => {
+                                                            if (part.startsWith('**') && part.endsWith('**')) {
+                                                                return <strong key={j} className={isDark ? 'text-red-200' : 'text-red-900'}>{part.slice(2, -2)}</strong>;
+                                                            }
+                                                            return part;
+                                                        });
+                                                    };
+                                                    return (
+                                                        <div className="space-y-3">
+                                                            {lines.map((line, i) => {
+                                                                const trimmed = line.trim();
+                                                                if (trimmed.startsWith('###')) return <h5 key={i} className={`font-cinzel font-bold mt-2 ${isDark ? 'text-red-400' : 'text-red-700'}`}>{trimmed.replace(/^###\s*/, '')}</h5>;
+                                                                if (trimmed.startsWith('##')) return <h5 key={i} className={`font-cinzel font-bold text-base mt-2 ${isDark ? 'text-red-400' : 'text-red-700'}`}>{trimmed.replace(/^##\s*/, '')}</h5>;
+                                                                return <p key={i}>{parseBold(trimmed)}</p>;
+                                                            })}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
                         </div>
                     )}
 

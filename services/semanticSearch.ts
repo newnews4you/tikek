@@ -242,8 +242,10 @@ const calculateRelevanceScore = (
   }
 
   // 5. Source type weighting
-  if (chunk.source === 'Biblija') {
-    score *= 1.1; // Slight boost for biblical content
+  if (chunk.source === 'Biblija' || chunk.source === 'Šventasis Raštas') {
+    score *= 2.0; // Boost for biblical content (was 2.5, slightly reduced to allow KBK in)
+  } else if (chunk.source.includes('Katekizmas')) {
+    score *= 1.5; // Boost for Catechism as well to ensure it passes threshold
   }
 
   // 6. Vector Similarity (Semantic meaning)

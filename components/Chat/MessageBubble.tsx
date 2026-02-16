@@ -32,32 +32,44 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSuggest
   };
 
   const renderContent = (text: string) => {
-    const cleanText = text.split('|||SUGGESTIONS')[0];
+    const cleanText = text.split('|||SUGGESTIONS')[0].split('|||SOURCES')[0];
     const lines = cleanText.split('\n');
 
     return lines.map((line, i) => {
-      // HEADER 3 (###) - Raudonas, kaip nuotraukoje "Šventojo Rašto žodis"
+      // HEADER 3 (###)
       if (line.trim().startsWith('###')) {
         return (
           <h3 key={i} className={`${isDark ? 'text-amber-400 border-amber-500/20' : 'text-red-900 border-red-100'} font-cinzel font-bold text-lg mt-6 mb-3 tracking-wide border-b pb-1`}>
-            {line.replace(/^###\s*/, '')}
+            {parseInlineStyles(line.replace(/^###\s*/, ''))}
           </h3>
         );
       }
-      // HEADER 2 (##) - Didesnis raudonas
+      // HEADER 2 (##)
       if (line.trim().startsWith('##')) {
         return (
           <h2 key={i} className={`${isDark ? 'text-amber-500' : 'text-red-900'} font-cinzel font-bold text-xl mt-6 mb-4`}>
-            {line.replace(/^##\s*/, '')}
+            {parseInlineStyles(line.replace(/^##\s*/, ''))}
           </h2>
         );
       }
-      // CITATA (>) - Geltona juosta, ryškesnis fonas
+      // CITATA (>)
       if (line.trim().startsWith('>')) {
         return (
           <blockquote key={i} className={`my-5 pl-5 border-l-4 ${isDark ? 'border-amber-600 bg-amber-900/20 text-slate-300' : 'border-amber-400 bg-amber-50 text-stone-800'} py-4 pr-4 italic font-serif text-lg rounded-r-lg shadow-sm leading-relaxed`}>
             {parseInlineStyles(line.replace(/^>\s*/, ''))}
           </blockquote>
+        );
+      }
+      // NUMERUOTAS SĄRAŠAS (1. 2. 3.)
+      const numberedMatch = line.trim().match(/^(\d+)\.\s+(.*)/);
+      if (numberedMatch) {
+        return (
+          <div key={i} className="flex gap-3 ml-2 mb-2">
+            <span className={`font-bold min-w-[1.5em] text-right ${isDark ? 'text-amber-500' : 'text-red-800'}`}>{numberedMatch[1]}.</span>
+            <p className={`min-h-[1em] ${!isUser ? `font-serif leading-relaxed ${isDark ? 'text-slate-200' : 'text-stone-800'}` : 'font-sans'}`}>
+              {parseInlineStyles(numberedMatch[2])}
+            </p>
+          </div>
         );
       }
       // SĄRAŠAS (* arba -)
@@ -70,6 +82,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSuggest
             </p>
           </div>
         )
+      }
+      // HORIZONTALI LINIJA (---)
+      if (line.trim() === '---' || line.trim() === '***') {
+        return <hr key={i} className={`my-4 ${isDark ? 'border-slate-700' : 'border-stone-200'}`} />;
       }
       // TUŠČIA EILUTĖ
       if (line.trim() === '') {
@@ -84,11 +100,26 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSuggest
     });
   };
 
-  const parseInlineStyles = (text: string) => {
-    const parts = text.split(/(\*\*.*?\*\*)/g);
+  const parseInlineStyles = (text: string): React.ReactNode[] => {
+    // Split by all inline patterns: **bold**, *italic*, `code`, [link](url)
+    const parts = text.split(/(\*\*.*?\*\*|\*(?!\*).*?\*|`[^`]+`|\[.*?\]\(.*?\))/g);
     return parts.map((part, j) => {
+      // BOLD (**text**)
       if (part.startsWith('**') && part.endsWith('**')) {
         return <strong key={j} className={`${isDark ? 'text-amber-400' : 'text-red-900'} font-bold`}>{part.slice(2, -2)}</strong>;
+      }
+      // ITALIC (*text*)
+      if (part.startsWith('*') && part.endsWith('*') && !part.startsWith('**')) {
+        return <em key={j} className={`${isDark ? 'text-amber-200' : 'text-stone-700'} italic`}>{part.slice(1, -1)}</em>;
+      }
+      // INLINE CODE (`code`)
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return <code key={j} className={`px-1.5 py-0.5 rounded text-sm font-mono ${isDark ? 'bg-slate-800 text-amber-300' : 'bg-stone-100 text-red-800'}`}>{part.slice(1, -1)}</code>;
+      }
+      // LINK ([text](url))
+      const linkMatch = part.match(/^\[(.*?)\]\((.*?)\)$/);
+      if (linkMatch) {
+        return <a key={j} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className={`underline underline-offset-2 ${isDark ? 'text-amber-400 hover:text-amber-300' : 'text-red-800 hover:text-red-600'}`}>{linkMatch[1]}</a>;
       }
       return part;
     });
@@ -99,16 +130,16 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onSuggest
       <div className={`flex max-w-[95%] md:max-w-[85%] gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
 
         <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm border ${isUser
-            ? (isDark ? 'bg-slate-700 border-slate-600 text-slate-300' : 'bg-stone-200 border-stone-300 text-stone-600')
-            : (isDark ? 'bg-amber-700 border-amber-600 text-amber-100' : 'bg-red-900 border-red-800 text-amber-50')
+          ? (isDark ? 'bg-slate-700 border-slate-600 text-slate-300' : 'bg-stone-200 border-stone-300 text-stone-600')
+          : (isDark ? 'bg-amber-700 border-amber-600 text-amber-100' : 'bg-red-900 border-red-800 text-amber-50')
           }`}>
           {isUser ? <User size={16} /> : <Sparkles size={16} />}
         </div>
 
         <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} w-full`}>
           <div className={`rounded-2xl px-5 py-5 shadow-sm border w-full overflow-hidden relative group ${isUser
-              ? (isDark ? 'bg-slate-800 border-slate-700 text-slate-200 rounded-tr-none' : 'bg-white border-stone-200 text-stone-800 rounded-tr-none')
-              : (isDark ? 'bg-slate-900 border-slate-800 text-slate-200 rounded-tl-none' : 'bg-[#faf9f6] border-stone-200 text-stone-900 rounded-tl-none')
+            ? (isDark ? 'bg-slate-800 border-slate-700 text-slate-200 rounded-tr-none' : 'bg-white border-stone-200 text-stone-800 rounded-tr-none')
+            : (isDark ? 'bg-slate-900 border-slate-800 text-slate-200 rounded-tl-none' : 'bg-[#faf9f6] border-stone-200 text-stone-900 rounded-tl-none')
             }`}>
 
             {!isUser && !message.isStreaming && (

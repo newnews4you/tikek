@@ -11,7 +11,7 @@ const EMBEDDING_CACHE_KEY = 'gemini_embedding_cache';
 const RESPONSE_CACHE_KEY = 'gemini_response_cache';
 const RESPONSE_CACHE_TTL = 1000 * 60 * 60; // 1 hour TTL
 const MAX_RESPONSE_CACHE_ENTRIES = 100;
-const MAX_HISTORY_TURNS = 15; // Keep last 15 messages to reduce input tokens
+const MAX_HISTORY_TURNS = 8; // Keep last 8 messages to reduce input tokens
 
 interface EmbeddingCache {
   [query: string]: number[];
@@ -141,6 +141,7 @@ export const sendMessageStream = async (
   };
 
   const normalizedMsg = currentMessage.trim().toLowerCase().replace(/[!?.,:;]+$/g, '');
+  const msgLower = currentMessage.toLowerCase();
   const greetingResponse = GREETING_RESPONSES[normalizedMsg];
 
   if (greetingResponse && !imageData) {
@@ -212,38 +213,93 @@ export const sendMessageStream = async (
 
   const ai = getClient();
 
-  // 5. Semantic Search (RAG) using Embedding
-  const knowledgeBase = getKnowledgeBase();
-  // We use the embedding if available to boost results (Hybrid Search)
-  let searchResults = semanticSearch(knowledgeBase, {
-    query: currentMessage,
-    limit: 5,
-    fuzzyMatch: true,
-    includeContext: false,
-    queryEmbedding: queryEmbedding || undefined
-  });
+  // 5. Dynamic RAG — Query Classification & Semantic Search
+  // 5a. Classify query: skip RAG for casual/short messages (saves embedding + search tokens)
+  const CASUAL_WORDS = ['labas', 'sveikas', 'sveiki', 'ačiū', 'aciu', 'dekui', 'dėkui', 'kaip sekasi',
+    'kaip laikaisi', 'taip', 'ne', 'gerai', 'ok', 'supratau', 'aisku', 'aišku', 'jo', 'nu'];
+  const THEOLOGICAL_KEYWORDS = ['bibli', 'diev', 'jėzu', 'jezu', 'kristus', 'bažnyči', 'baznyci',
+    'nuodėm', 'nuodem', 'sakrament', 'malda', 'mald', 'rožin', 'rozin', 'švent', 'svent',
+    'katekizm', 'enciklik', 'popiežiu', 'popieziu', 'evangeli', 'psalm', 'apaštal', 'apasal',
+    'tikėjim', 'tikejim', 'išpažint', 'ispazint', 'komunij', 'krikšt', 'krikst', 'sutvirtini',
+    'santuok', 'kunig', 'vyskup', 'marij', 'trejyb', 'prisikėli', 'prisikeli', 'dangus',
+    'pragaras', 'skaistykl', 'angelai', 'angel', 'velnias', 'velni'];
 
-  // Prepare Context
+  const isCasualQuery = currentMessage.trim().length < 15 ||
+    CASUAL_WORDS.some(w => normalizedMsg === w) ||
+    (!currentMessage.includes('?') && currentMessage.trim().length < 25 &&
+      !THEOLOGICAL_KEYWORDS.some(kw => msgLower.includes(kw)));
+
+  // 5b. Context Discounting: skip RAG if memory already has a good answer
+  const hasMemoryContext = !!retrievedContext;
+
+  const shouldRunRAG = !isCasualQuery && !hasMemoryContext && !imageData;
+
   let retrievedContextFromRAG = "";
-  if (searchResults.length > 0) {
-    retrievedContextFromRAG = "### AUTENTIŠKI ŠALTINIAI ATSAKYMUI (NAUDOTI ŠIUOS TEKSTUS) ###\n";
-    const uniqueResults = searchResults.filter((value, index, self) =>
-      index === self.findIndex((t) => (
-        t.content === value.content
-      ))
-    ).slice(0, 2);
 
-    uniqueResults.forEach(result => {
-      retrievedContextFromRAG += `--- ŠALTINIS: ${result.bookOrSection} (${result.chapterOrRef}) ---\n${result.content}\n\n`;
+  if (shouldRunRAG) {
+    const knowledgeBase = getKnowledgeBase();
+    let searchResults = semanticSearch(knowledgeBase, {
+      query: currentMessage,
+      limit: 5,
+      fuzzyMatch: true,
+      includeContext: false,
+      queryEmbedding: queryEmbedding || undefined
     });
-    retrievedContextFromRAG += "### ŠALTINIŲ PABAIGA ###\n";
+
+    // 5c. Score Threshold: only inject context if results are actually relevant
+    const relevantResults = searchResults.filter(r => r.score > 50);
+
+    if (relevantResults.length > 0) {
+      retrievedContextFromRAG = "### AUTENTIŠKI ŠALTINIAI ATSAKYMUI (NAUDOTI ŠIUOS TEKSTUS) ###\n";
+      // Prioritize Bible AND Catechism: try to get one of each for balanced view
+      const bibleChunk = relevantResults.find(r => r.source === 'Biblija' || r.source === 'Šventasis Raštas');
+      const catechismChunk = relevantResults.find(r => r.source.includes('Katekizmas') || r.source.includes('KBK'));
+
+      let topChunks = [];
+
+      // Logic: 
+      // 1. If we have both, take 1 Bible + 1 Catechism
+      // 2. If we have only Bible, take 2 Bible (or 1 Bible + 1 other)
+      // 3. If we have only Catechism, take 2 Catechism (or 1 Catechism + 1 other)
+
+      if (bibleChunk && catechismChunk) {
+        topChunks.push(bibleChunk);
+        topChunks.push(catechismChunk);
+      } else if (bibleChunk) {
+        topChunks.push(bibleChunk);
+        // Fill second slot with next best non-duplicate
+        const nextBest = relevantResults.find(r => r !== bibleChunk);
+        if (nextBest) topChunks.push(nextBest);
+      } else if (catechismChunk) {
+        topChunks.push(catechismChunk);
+        // Fill second slot with next best non-duplicate
+        const nextBest = relevantResults.find(r => r !== catechismChunk);
+        if (nextBest) topChunks.push(nextBest);
+      } else {
+        // Fallback: just top 2
+        topChunks = relevantResults.slice(0, 2);
+      }
+
+      const uniqueResults = topChunks.filter((value, index, self) =>
+        index === self.findIndex((t) => t.content === value.content)
+      );
+
+      uniqueResults.forEach(result => {
+        const text = result.content.length > 600 ? result.content.slice(0, 600) + '...' : result.content;
+        retrievedContextFromRAG += `--- ŠALTINIS: ${result.bookOrSection} (${result.chapterOrRef}) ---\n${text}\n\n`;
+      });
+      retrievedContextFromRAG += "### ŠALTINIŲ PABAIGA ###\n";
+    } else {
+      console.log('🔇 Dynamic RAG: No relevant results (all scores < 50), skipping context injection');
+    }
+  } else {
+    console.log(`🔇 Dynamic RAG: Skipped (casual=${isCasualQuery}, hasMemory=${hasMemoryContext}, image=${!!imageData})`);
   }
 
   let finalSystemInstruction = SYSTEM_INSTRUCTION;
 
   // Add Liturgy Context (Conditional)
   const LITURGY_KEYWORDS = ['šiandien', 'šiandieną', 'evangelij', 'skaitin', 'švent', 'liturgi', 'dienos', 'sekmadienis', 'sekmadienio'];
-  const msgLower = currentMessage.toLowerCase();
   const isLiturgyRelevant = LITURGY_KEYWORDS.some(kw => msgLower.includes(kw));
 
   if (retrievedContext) {

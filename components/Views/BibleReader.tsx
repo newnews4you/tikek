@@ -163,6 +163,7 @@ export const BibleReader: React.FC = () => {
   const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
   const [selection, setSelection] = useState<{ text: string; x: number; y: number } | null>(null);
   const [verseClicked, setVerseClicked] = useState(false);
+  const [selectedVerses, setSelectedVerses] = useState<number[]>([]);
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [highlightedText, setHighlightedText] = useState("");
@@ -354,18 +355,75 @@ export const BibleReader: React.FC = () => {
   const handleVerseClick = (verseNumber: number, verseContent: string, event: React.MouseEvent | React.TouchEvent) => {
     event.preventDefault();
     event.stopPropagation();
-
-    // Set flag to indicate a verse was clicked
     setVerseClicked(true);
 
-    // Get the position of the clicked element
-    const target = event.currentTarget as HTMLElement;
-    const rect = target.getBoundingClientRect();
+    // Toggle verse selection (like Plans)
+    setSelectedVerses(prev =>
+      prev.includes(verseNumber)
+        ? prev.filter(v => v !== verseNumber)
+        : [...prev, verseNumber].sort((a, b) => a - b)
+    );
+  };
 
-    setSelection({
-      text: verseContent,
-      x: rect.left + rect.width / 2,
-      y: rect.top - 10
+  const handleCopySelectedVerses = () => {
+    if (!parsedContent?.verses || selectedVerses.length === 0) return;
+    const selectedText = selectedVerses.map(vNum => {
+      const v = parsedContent.verses.find((cv: any) => cv.number === vNum);
+      return v ? `${v.number}. ${v.content}` : '';
+    }).join('\n');
+    const reference = currentBook ? `${currentBook.book} ${(selectedChapter ?? 0) + 1}:${selectedVerses.join(',')}` : '';
+    navigator.clipboard.writeText(`${selectedText}\n\n(${reference})`);
+    setSelectedVerses([]);
+  };
+
+  const handleAnalyzeSelectedVerses = () => {
+    if (!parsedContent?.verses || selectedVerses.length === 0) return;
+    const selectedText = selectedVerses.map(vNum => {
+      const v = parsedContent.verses.find((cv: any) => cv.number === vNum);
+      return v ? v.content : '';
+    }).join(' ');
+    const reference = currentBook ? `${currentBook.book} ${(selectedChapter ?? 0) + 1}:${selectedVerses.join(',')}` : '';
+    setSelection({ text: `${selectedText} (${reference})`, x: 0, y: 0 });
+    setSelectedVerses([]);
+    // Trigger analysis immediately
+    setHighlightedText(`${selectedText} (${reference})`);
+    setIsChatOpen(true);
+    setChatHistory([]);
+    setIsAiLoading(true);
+    const prompt = `Esu katalikas ir skaitau šią Šventojo Rašto ištrauką: \"${selectedText}\" (${reference}). Prašau pateikti gilų teologinį komentarą (ekzegezę) iš Katalikų Bažnyčios perspektyvos lietuvių kalba.`;
+    generateSimpleContent(prompt).then(result => {
+      setChatHistory([{ role: 'model', text: result || 'Negaliu pakomentuoti šios ištraukos.' }]);
+    }).catch(() => {
+      setChatHistory([{ role: 'model', text: 'Atsiprašau, įvyko ryšio klaida.' }]);
+    }).finally(() => {
+      setIsAiLoading(false);
+    });
+    setSelection(null);
+  };
+
+  // Reset selected verses on chapter change
+  useEffect(() => {
+    setSelectedVerses([]);
+  }, [selectedBook, selectedChapter]);
+
+  // Inline markdown renderer for Bible analysis chat
+  const renderInline = (text: string): React.ReactNode[] => {
+    const parts = text.split(/(\*\*.*?\*\*|\*(?!\*).*?\*|`[^`]+`|\[.*?\]\(.*?\))/g);
+    return parts.map((part, j) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={j} className={`${isDark ? 'text-amber-400' : 'text-red-900'} font-bold`}>{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith('*') && part.endsWith('*') && !part.startsWith('**')) {
+        return <em key={j} className={`${isDark ? 'text-amber-200' : 'text-stone-700'} italic`}>{part.slice(1, -1)}</em>;
+      }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return <code key={j} className={`px-1 py-0.5 rounded text-xs font-mono ${isDark ? 'bg-slate-800 text-amber-300' : 'bg-stone-100 text-red-800'}`}>{part.slice(1, -1)}</code>;
+      }
+      const linkMatch = part.match(/^\[(.*?)\]\((.*?)\)$/);
+      if (linkMatch) {
+        return <a key={j} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className={`underline ${isDark ? 'text-amber-400' : 'text-red-800'}`}>{linkMatch[1]}</a>;
+      }
+      return part;
     });
   };
 
@@ -832,22 +890,44 @@ export const BibleReader: React.FC = () => {
               >
                 {parsedContent ? (
                   <div className={`leading-relaxed text-lg space-y-4 ${isDark ? 'text-slate-300' : 'text-stone-800'}`}>
-                    {parsedContent.verses ? (
-                      parsedContent.verses.map((verse: any) => (
-                        <span
-                          key={verse.number}
-                          className="inline mr-1 cursor-pointer"
-                          onClick={(e) => handleVerseClick(verse.number, verse.content, e)}
-                          onTouchEnd={(e) => handleVerseClick(verse.number, verse.content, e)}
-                        >
-                          <sup className="text-red-900 font-bold text-xs mr-1 opacity-70 select-none">
-                            {verse.number}
-                          </sup>
-                          <span className="mr-1 hover:bg-yellow-100 transition-colors rounded px-0.5">
-                            {verse.content}
-                          </span>
+                    {/* Verse Selection Toolbar */}
+                    {selectedVerses.length > 0 && (
+                      <div className={`fixed top-0 left-0 right-0 z-[200] flex items-center justify-between gap-3 px-4 py-3 backdrop-blur-xl border-b shadow-lg ${isDark ? 'bg-slate-900/95 border-amber-500/30' : 'bg-white/95 border-amber-200'}`}>
+                        <span className={`text-sm font-medium ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
+                          Pasirinkta: {selectedVerses.length}
                         </span>
-                      ))
+                        <div className="flex gap-2">
+                          <button onClick={() => setSelectedVerses([])} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${isDark ? 'text-slate-400 hover:bg-slate-800' : 'text-stone-500 hover:bg-stone-100'}`}>
+                            Atšaukti
+                          </button>
+                          <button onClick={handleCopySelectedVerses} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${isDark ? 'bg-slate-800 text-amber-400 hover:bg-slate-700' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'}`}>
+                            Kopijuoti
+                          </button>
+                          <button onClick={handleAnalyzeSelectedVerses} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-red-900 text-amber-50 shadow-lg hover:bg-red-800">
+                            <Sparkles size={14} /> Komentuoti
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {parsedContent.verses ? (
+                      parsedContent.verses.map((verse: any) => {
+                        const isSelected = selectedVerses.includes(verse.number);
+                        return (
+                          <span
+                            key={verse.number}
+                            className={`inline mr-1 cursor-pointer transition-colors rounded px-0.5 ${isSelected ? (isDark ? 'bg-amber-900/40' : 'bg-amber-100/60') : ''}`}
+                            onClick={(e) => handleVerseClick(verse.number, verse.content, e)}
+                            onTouchEnd={(e) => handleVerseClick(verse.number, verse.content, e)}
+                          >
+                            <sup className={`font-bold text-xs mr-1 select-none ${isSelected ? (isDark ? 'text-amber-400' : 'text-amber-700') : (isDark ? 'text-amber-500/70' : 'text-red-900 opacity-70')}`}>
+                              {verse.number}
+                            </sup>
+                            <span className={`mr-1 transition-colors rounded px-0.5 ${isSelected ? '' : (isDark ? 'hover:bg-white/5' : 'hover:bg-yellow-100')}`}>
+                              {verse.content}
+                            </span>
+                          </span>
+                        );
+                      })
                     ) : (
                       // Fallback if verses are missing/empty
                       displayedContent || "Tekstas nerastas."
@@ -946,7 +1026,7 @@ export const BibleReader: React.FC = () => {
 
       {/* Chat Sidebar */}
       {isChatOpen && (
-        <aside className={`fixed top-0 right-0 w-full sm:w-[450px] ${isMobile ? 'bottom-[60px]' : 'bottom-0'} bg-white border-l border-stone-200 shadow-2xl z-[100] flex flex-col animate-in slide-in-from-right duration-300`}>
+        <aside className={`fixed top-0 right-0 w-full sm:w-[450px] ${isMobile ? 'bottom-[60px]' : 'bottom-0'} ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-stone-200'} border-l shadow-2xl z-[100] flex flex-col animate-in slide-in-from-right duration-300`}>
           <header className="p-4 bg-red-900 text-amber-50 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Highlighter size={18} />
@@ -955,33 +1035,64 @@ export const BibleReader: React.FC = () => {
             <button onClick={() => setIsChatOpen(false)} className="p-1 hover:bg-red-800 rounded-full transition-colors"><X size={24} /></button>
           </header>
 
-          <div className="px-5 py-4 bg-amber-50 border-b border-amber-100">
-            <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest block mb-1">Pasirinkta ištrauka:</span>
-            <p className="italic font-serif text-stone-700 text-sm leading-relaxed line-clamp-4">„{highlightedText}"</p>
+          <div className={`px-5 py-4 border-b ${isDark ? 'bg-amber-900/20 border-amber-800/30' : 'bg-amber-50 border-amber-100'}`}>
+            <span className={`text-[10px] font-bold uppercase tracking-widest block mb-1 ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>Pasirinkta ištrauka:</span>
+            <p className={`italic font-serif text-sm leading-relaxed line-clamp-4 ${isDark ? 'text-slate-300' : 'text-stone-700'}`}>„{highlightedText}"</p>
           </div>
 
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-6 bg-[#fffdfa]">
+          <div ref={scrollRef} className={`flex-1 overflow-y-auto p-5 space-y-6 ${isDark ? 'bg-slate-950' : 'bg-[#fffdfa]'}`}>
             {chatHistory.map((msg, i) => (
               <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                <div className={`max-w-[90%] rounded-2xl p-4 shadow-sm border ${msg.role === 'user' ? 'bg-stone-100 border-stone-200 text-stone-800 rounded-tr-none' : 'bg-white border-red-50 text-stone-900 rounded-tl-none'}`}>
+                <div className={`max-w-[90%] rounded-2xl p-4 shadow-sm border ${msg.role === 'user'
+                  ? (isDark ? 'bg-slate-800 border-slate-700 text-slate-200 rounded-tr-none' : 'bg-stone-100 border-stone-200 text-stone-800 rounded-tr-none')
+                  : (isDark ? 'bg-slate-900 border-slate-800 text-slate-200 rounded-tl-none' : 'bg-white border-red-50 text-stone-900 rounded-tl-none')
+                  }`}>
                   <div className="flex items-center gap-2 mb-2">
-                    {msg.role === 'user' ? <User size={12} className="text-stone-400" /> : <Sparkles size={12} className="text-red-700" />}
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">{msg.role === 'user' ? 'Mano klausimas' : 'Tikėjimo Šviesa'}</span>
+                    {msg.role === 'user' ? <User size={12} className={isDark ? 'text-slate-400' : 'text-stone-400'} /> : <Sparkles size={12} className={isDark ? 'text-amber-400' : 'text-red-700'} />}
+                    <span className={`text-[10px] font-bold uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-stone-400'}`}>{msg.role === 'user' ? 'Mano klausimas' : 'Tikėjimo Šviesa'}</span>
                   </div>
-                  <div className="prose prose-stone prose-sm font-serif leading-relaxed text-stone-800">
-                    {msg.text.split('\n').map((para, j) => (
-                      <p key={j} className="mb-3 last:mb-0">{para.startsWith('**') ? <strong className="text-red-900">{para.replace(/\*\*/g, '')}</strong> : para}</p>
-                    ))}
+                  <div className={`prose prose-sm max-w-none font-serif leading-relaxed ${isDark ? 'prose-invert text-slate-200' : 'prose-stone text-stone-800'}`}>
+                    {msg.text.split('|||SUGGESTIONS')[0].split('|||SOURCES')[0].split('\n').map((line, j) => {
+                      // HEADER 3
+                      if (line.trim().startsWith('###')) {
+                        return <h3 key={j} className={`font-cinzel font-bold text-base mt-4 mb-2 ${isDark ? 'text-amber-400' : 'text-red-900'}`}>{renderInline(line.replace(/^###\s*/, ''))}</h3>;
+                      }
+                      // HEADER 2
+                      if (line.trim().startsWith('##')) {
+                        return <h2 key={j} className={`font-cinzel font-bold text-lg mt-4 mb-2 ${isDark ? 'text-amber-500' : 'text-red-900'}`}>{renderInline(line.replace(/^##\s*/, ''))}</h2>;
+                      }
+                      // BLOCKQUOTE
+                      if (line.trim().startsWith('>')) {
+                        return <blockquote key={j} className={`my-3 pl-4 border-l-3 py-2 italic ${isDark ? 'border-amber-600 text-slate-300' : 'border-amber-400 text-stone-700'}`}>{renderInline(line.replace(/^>\s*/, ''))}</blockquote>;
+                      }
+                      // NUMBERED LIST
+                      const numMatch = line.trim().match(/^(\d+)\.\s+(.*)/);
+                      if (numMatch) {
+                        return <div key={j} className="flex gap-2 ml-1 mb-1.5"><span className={`font-bold min-w-[1.2em] text-right ${isDark ? 'text-amber-500' : 'text-red-800'}`}>{numMatch[1]}.</span><span>{renderInline(numMatch[2])}</span></div>;
+                      }
+                      // UNORDERED LIST
+                      if (line.trim().startsWith('* ') || line.trim().startsWith('- ')) {
+                        return <div key={j} className="flex gap-2 ml-1 mb-1.5"><span className="text-amber-600">•</span><span>{renderInline(line.replace(/^[\*-]\s*/, ''))}</span></div>;
+                      }
+                      // HR
+                      if (line.trim() === '---' || line.trim() === '***') {
+                        return <hr key={j} className={`my-3 ${isDark ? 'border-slate-700' : 'border-stone-200'}`} />;
+                      }
+                      // EMPTY LINE
+                      if (line.trim() === '') return <div key={j} className="h-1.5" />;
+                      // PLAIN TEXT
+                      return <p key={j} className="mb-2 last:mb-0">{renderInline(line)}</p>;
+                    })}
                   </div>
                 </div>
               </div>
             ))}
-            {isAiLoading && <div className="text-center text-stone-400 text-xs italic">Analizuojama...</div>}
+            {isAiLoading && <div className={`text-center text-xs italic ${isDark ? 'text-slate-500' : 'text-stone-400'}`}>Analizuojama...</div>}
           </div>
 
-          <footer className="p-4 bg-white border-t border-stone-200">
+          <footer className={`p-4 border-t ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-stone-200'}`}>
             <form onSubmit={sendFollowUp} className="relative flex items-center">
-              <input type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} disabled={isAiLoading} placeholder="Klauskite apie šią vietą..." className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 pr-12 text-sm outline-none font-serif" />
+              <input type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} disabled={isAiLoading} placeholder="Klauskite apie šią vietą..." className={`w-full border rounded-xl py-3 px-4 pr-12 text-sm outline-none font-serif ${isDark ? 'bg-slate-800 border-slate-700 text-slate-200 placeholder-slate-500' : 'bg-stone-50 border-stone-200 text-stone-800 placeholder-stone-400'}`} />
               <button type="submit" disabled={!userInput.trim() || isAiLoading} className="absolute right-2 p-2 bg-red-900 text-amber-50 rounded-lg hover:bg-red-800 transition-all shadow-sm"><Send size={16} /></button>
             </form>
           </footer>
