@@ -45,7 +45,7 @@ interface ReadingPlansProps {
 // ========================
 // FLOATING SAINTS
 // ========================
-const SAINT_SYMBOLS = ['✝', '☦', '⛪', '🕊', '🙏', '✞', '☧', '🔔', '⚜', '🕯'];
+const SAINT_SYMBOLS = ['✝', '⛪', '🕊', '🙏', '✞', '☧', '🔔', '⚜', '🕯', '✨'];
 
 const FloatingSaints: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     const saints = useMemo(() =>
