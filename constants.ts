@@ -26,11 +26,6 @@ export const KNOWLEDGE_SOURCES = [
     title: "Katalikų Bažnyčios Katekizmas (KBK)",
     description: "Oficialus tikėjimo ir moralės mokymo sąvadas.",
     icon: "Shield"
-  },
-  {
-    title: "Popiežių Magisteriumas",
-    description: "Jono Pauliaus II, Benedikto XVI ir Pranciškaus enciklikos bei apaštališkieji paraginimai.",
-    icon: "Scroll"
   }
 ];
 
