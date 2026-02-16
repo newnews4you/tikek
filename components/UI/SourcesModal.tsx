@@ -1,6 +1,8 @@
 import React from 'react';
-import { X, Book, Shield, Church, Scroll, Feather, Info, AlertTriangle, AlertOctagon } from 'lucide-react';
+import { X, Book, Shield, Church, Scroll, Feather, Info, AlertOctagon, Sparkles } from 'lucide-react';
 import { KNOWLEDGE_SOURCES } from '../../constants';
+import { useTheme } from '../../context/ThemeContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface SourcesModalProps {
   isOpen: boolean;
@@ -16,96 +18,110 @@ const iconMap: Record<string, React.ReactNode> = {
 };
 
 export const SourcesModal: React.FC<SourcesModalProps> = ({ isOpen, onClose }) => {
+  const { isDark } = useTheme();
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
+    <AnimatePresence>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 bg-stone-900/60 backdrop-blur-md transition-opacity"
+          onClick={onClose}
+        />
 
-      {/* Modal Content */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-        
-        <div className="sticky top-0 bg-white border-b border-stone-100 p-4 flex items-center justify-between z-10">
-          <div className="flex items-center gap-2">
-            <div className="bg-amber-100 p-2 rounded-lg text-amber-800">
-              <Info size={20} />
+        {/* Modal Content */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          className={`relative rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-stone-200'
+            }`}
+        >
+
+          <div className={`sticky top-0 border-b p-5 flex items-center justify-between z-10 backdrop-blur-xl ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-stone-100'
+            }`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-xl ${isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-100 text-amber-800'}`}>
+                <Info size={22} />
+              </div>
+              <h2 className={`font-cinzel font-bold text-2xl ${isDark ? 'text-white' : 'text-stone-900'}`}>Apie Sistemą</h2>
             </div>
-            <h2 className="font-cinzel font-bold text-xl text-stone-900">Apie Sistemą ir Šaltinius</h2>
+            <button
+              onClick={onClose}
+              className={`p-2 rounded-full transition-colors ${isDark ? 'text-slate-500 hover:bg-slate-800 hover:text-white' : 'text-stone-400 hover:bg-stone-100'
+                }`}
+            >
+              <X size={24} />
+            </button>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 text-stone-400 hover:bg-stone-100 rounded-full transition-colors"
-          >
-            <X size={24} />
-          </button>
-        </div>
 
-        <div className="p-6 space-y-8">
-          
-          <div className="bg-amber-50 border border-amber-100 rounded-xl p-5 space-y-4">
-            <div>
-                <h3 className="font-bold text-amber-900 mb-2 font-serif">Kaip veikia „Tikėjimo Šviesa“?</h3>
-                <p className="text-sm text-stone-700 leading-relaxed font-serif">
-                Ši sistema naudoja dirbtinį intelektą (Google Gemini), kuris yra apmokytas naudojant milijonus teologinių tekstų.
+          <div className="p-6 md:p-8 space-y-10">
+
+            {/* Mission Section */}
+            <div className={`rounded-3xl p-6 border relative overflow-hidden ${isDark ? 'bg-amber-900/10 border-amber-900/30 text-slate-300' : 'bg-amber-50/50 border-amber-100 text-stone-700'
+              }`}>
+              <div className="relative z-10">
+                <h3 className={`font-cinzel font-bold text-xl mb-4 ${isDark ? 'text-amber-400' : 'text-amber-900'}`}>Tikėjimo Šviesa</h3>
+                <p className="text-base leading-relaxed font-serif italic mb-6">
+                  Tai išmanusis katalikiško tikėjimo palydovas, apjungiantis tūkstantmetę Bažnyčios išmintį su pažangiausiomis dirbtinio intelekto technologijomis.
                 </p>
+
+                <div className={`p-4 rounded-2xl border flex gap-4 ${isDark ? 'bg-slate-950/50 border-amber-500/20' : 'bg-white border-amber-200'
+                  }`}>
+                  <AlertOctagon size={20} className="shrink-0 text-amber-600 mt-1" />
+                  <div className="text-sm">
+                    <strong className={`block uppercase tracking-wider mb-1 ${isDark ? 'text-amber-400' : 'text-amber-900'}`}>Dėmesio dėl tikslumo</strong>
+                    <p className={isDark ? 'text-slate-400' : 'text-stone-600'}>
+                      Nors sistema remiasi patikimais šaltiniais, AI gali sugeneruoti netikslių interpretacijų („haliucinacijų“). Rimtoms dvasinėms studijoms visada rekomenduojame pasitikslinti su oficialiais Bažnyčios leidiniais.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="absolute -right-10 -bottom-10 opacity-5">
+                <Church size={200} />
+              </div>
             </div>
 
-            <div className="bg-white/60 p-3 rounded-lg border border-amber-200/50 text-sm space-y-3">
-                <div className="flex gap-3 items-start p-2 bg-red-50/50 rounded border border-red-100">
-                    <AlertOctagon size={16} className="mt-0.5 text-red-600 shrink-0" />
-                    <div>
-                        <span className="font-bold text-red-900 block text-xs uppercase tracking-wider mb-1">Svarbus įspėjimas apie tikslumą:</span>
-                        <span className="text-stone-700">
-                            Kadangi AI remiasi savo atmintimi, o ne tiesiogine duomenų baze, <strong>gali pasitaikyti netikslumų („haliucinacijų“)</strong>. Modelis gali sugeneruoti tekstą, kuris skamba bibliškai, bet nėra tiksli citata. Rimtoms studijoms visada patikrinkite citatas su oficialiais šaltiniais (pvz., <em>biblija.lt</em> ar <em>katekizmas.lt</em>).
-                        </span>
+            {/* Knowledge Base */}
+            <div>
+              <div className="flex items-center gap-2 mb-6">
+                <Sparkles size={18} className="text-amber-500" />
+                <h3 className={`font-cinzel font-bold text-lg uppercase tracking-widest ${isDark ? 'text-slate-400' : 'text-stone-500'}`}>
+                  AI Žinių Bazė
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {KNOWLEDGE_SOURCES.map((source, idx) => (
+                  <div key={idx} className={`flex items-start gap-4 p-5 rounded-2xl border transition-all ${isDark ? 'bg-slate-800/40 border-slate-700 hover:bg-slate-800 hover:border-amber-500/30 text-white' : 'bg-stone-50/50 border-stone-200/60 hover:bg-white hover:shadow-lg text-stone-900'
+                    }`}>
+                    <div className={`p-2 rounded-lg ${isDark ? 'bg-slate-900 text-amber-500' : 'bg-white text-red-800 shadow-sm'}`}>
+                      {iconMap[source.icon]}
                     </div>
-                </div>
-
-                <div className="h-px bg-amber-200/50 w-full" />
-
-                <div className="flex gap-2 items-start">
-                    <span className="font-bold text-stone-800 min-w-[80px]">Biblioteka:</span>
-                    <span className="text-stone-600 flex items-start gap-1">
-                        <AlertTriangle size={14} className="mt-0.5 text-amber-600 shrink-0" />
-                        <span>
-                            Šioje programėlės versijoje įkeltos tik <strong>pavyzdinės ištraukos</strong> (demonstracinė versija). Tai vienintelė vieta, kur tekstas yra 100% statinis ir patikrintas.
-                        </span>
-                    </span>
-                </div>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-cinzel font-bold text-lg text-stone-800 mb-4 border-b border-stone-200 pb-2">
-              Naudojami Šaltiniai (AI Žinių Bazė)
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {KNOWLEDGE_SOURCES.map((source, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-3 rounded-lg hover:bg-stone-50 transition-colors border border-transparent hover:border-stone-100">
-                  <div className="mt-1 text-red-800">
-                    {iconMap[source.icon]}
+                    <div>
+                      <h4 className="font-bold text-sm mb-1">{source.title}</h4>
+                      <p className={`text-xs font-serif leading-relaxed ${isDark ? 'text-slate-400' : 'text-stone-500'}`}>
+                        {source.description}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-stone-900">{source.title}</h4>
-                    <p className="text-xs text-stone-500 font-serif mt-1">{source.description}</p>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="text-center pt-4 border-t border-stone-100">
-             <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">
-               Ad Majorem Dei Gloriam
-             </p>
-          </div>
+            <div className="text-center pt-8 border-t border-stone-100 flex flex-col items-center gap-2">
+              <p className={`text-[11px] uppercase tracking-[0.3em] font-bold ${isDark ? 'text-amber-500/60' : 'text-stone-400'}`}>
+                Ad Majorem Dei Gloriam
+              </p>
+              <div className={`h-1 w-12 rounded-full ${isDark ? 'bg-amber-900/50' : 'bg-amber-100'}`} />
+            </div>
 
-        </div>
+          </div>
+        </motion.div>
       </div>
-    </div>
+    </AnimatePresence>
   );
 };
