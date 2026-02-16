@@ -26,21 +26,6 @@ export const KNOWLEDGE_SOURCES = [
     title: "Katalikų Bažnyčios Katekizmas (KBK)",
     description: "Oficialus tikėjimo ir moralės mokymo sąvadas.",
     icon: "Shield"
-  },
-  {
-    title: "Vatikano II Susirinkimo Dokumentai",
-    description: "Konstitucijos (pvz., Lumen Gentium), Dekretai ir Deklaracijos.",
-    icon: "Church"
-  },
-  {
-    title: "Popiežių Magisteriumas",
-    description: "Jono Pauliaus II, Benedikto XVI ir Pranciškaus enciklikos bei apaštališkieji paraginimai.",
-    icon: "Scroll"
-  },
-  {
-    title: "Šventųjų Raštai",
-    description: "Bažnyčios Tėvų (Augustinas, Jeronimas) ir didžiųjų šventųjų (Teresė Avilietė, Tomas Akvinietis) tekstai.",
-    icon: "Feather"
   }
 ];
 
